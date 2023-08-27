@@ -1,6 +1,7 @@
 import numpy as np
 from numpy import random
 import mmcv
+import torch
 from mmdet.datasets.builder import PIPELINES
 from mmcv.parallel import DataContainer as DC
 
@@ -353,3 +354,34 @@ class CustomPointsRangeFilter:
         clean_points = points[points_mask]
         data["points"] = clean_points
         return data
+        
+@PIPELINES.register_module()
+class PadDepthMap(object):
+
+    def __init__(self, size=None, size_divisor=None, pad_val=0):
+        self.size = size
+        self.size_divisor = size_divisor
+        self.pad_val = pad_val
+        # only one of size and size_divisor should be valid
+        assert size is not None or size_divisor is not None
+        assert size is None or size_divisor is None
+
+    def _pad_img(self, results):
+        """Pad images according to ``self.size``."""
+        if self.size is not None:
+            padded_depth_map = [mmcv.impad(
+                depth_map, shape=self.size, pad_val=self.pad_val) for depth_map in results['gt_depth']]
+        elif self.size_divisor is not None:
+            padded_depth_map = [mmcv.impad_to_multiple(
+                depth_map, self.size_divisor, pad_val=self.pad_val) for depth_map in results['gt_depth']]
+        
+        results['gt_depth'] = np.array(padded_depth_map)
+    def __call__(self, results):
+        """Call function to pad images, masks, semantic segmentation maps.
+        Args:
+            results (dict): Result dict from loading pipeline.
+        Returns:
+            dict: Updated result dict.
+        """
+        self._pad_img(results)
+        return results

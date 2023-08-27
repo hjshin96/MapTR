@@ -3,9 +3,11 @@ from typing import Any, Dict, Tuple
 
 import mmcv
 import numpy as np
+import torch
 from nuscenes.map_expansion.map_api import NuScenesMap
 from nuscenes.map_expansion.map_api import locations as LOCATIONS
 from PIL import Image
+from pyquaternion import Quaternion
 
 
 from mmdet3d.core.points import BasePoints, get_points_type
@@ -227,9 +229,7 @@ class CustomLoadPointsFromMultiSweeps:
                 if self.remove_close:
                     points_sweep = self._remove_close(points_sweep)
                 sweep_ts = sweep["timestamp"] / 1e6
-                points_sweep[:, :3] = (
-                    points_sweep[:, :3] @ sweep["sensor2lidar_rotation"].T
-                )
+                points_sweep[:, :3] = (points_sweep[:, :3] @ sweep["sensor2lidar_rotation"].T)
                 points_sweep[:, :3] += sweep["sensor2lidar_translation"]
                 points_sweep[:, 4] = ts - sweep_ts
                 points_sweep = points.new_point(points_sweep)
@@ -366,3 +366,38 @@ class CustomLoadPointsFromFile:
 
         return results
 
+@PIPELINES.register_module()
+class CustomImageDepth:
+    def __init__(self, grid_config):
+        self.grid_config = grid_config
+    def __call__(self, data):
+        depth = []
+        for n in range(len(data["lidar2img"])):
+            img_shape = data["img"][n].shape
+            points_img = data["points"][:, :3].coord@torch.tensor(data["lidar2img"][n][:3, :3].T, dtype=torch.float32) + torch.tensor(data["lidar2img"][n][:3, 3], dtype=torch.float32).unsqueeze(0)
+            points_img = torch.cat([points_img[:, :2]/points_img[:, 2:3], points_img[:, 2:3]], 1)
+            depth_map = self.points2depthmap(points_img, img_shape)
+            depth.append(depth_map)
+        depth = torch.stack(depth).numpy()
+        data["gt_depth"] = depth
+        return data
+    
+    def points2depthmap(self, points_img, img_shape):
+        [height, width] = img_shape[:2]
+        depth_map = torch.zeros((height, width), dtype=torch.float32)
+        depth = points_img[:, 2]
+        coor = torch.round(points_img[:, :2])
+        kept1 = (coor[:, 0] >= 0) & (coor[:, 0] < width) & (
+            coor[:, 1] >= 0) & (coor[:, 1] < height) & (depth < self.grid_config['depth'][1]) & (
+                    depth >= self.grid_config['depth'][0])
+        coor, depth = coor[kept1], depth[kept1]
+        ranks = coor[:, 0] + coor[:, 1] * width                     #  
+        sort = (ranks + depth / 100.).argsort()                     #
+        coor, depth, ranks = coor[sort], depth[sort], ranks[sort]   #
+
+        kept2 = torch.ones(coor.shape[0], device=coor.device, dtype=torch.bool)
+        kept2[1:] = (ranks[1:] != ranks[:-1])
+        coor, depth = coor[kept2], depth[kept2]
+        coor = coor.to(torch.long)
+        depth_map[coor[:, 1], coor[:, 0]] = depth
+        return depth_map
