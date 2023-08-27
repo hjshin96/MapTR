@@ -11,13 +11,15 @@ import copy
 import mmcv
 import os
 import time
+import sys
 import torch
 import warnings
-import sys
 from mmcv import Config, DictAction
 from mmcv.runner import get_dist_info, init_dist
 from os import path as osp
 
+sys.path.append('/home/Documents/MapTR/')
+# sys.path.append('/home/Documents/MapTR/projects/mmdet3d_plugin/maptr/modules')
 from mmdet import __version__ as mmdet_version
 from mmdet3d import __version__ as mmdet3d_version
 #from mmdet3d.apis import train_model
@@ -29,7 +31,7 @@ from mmdet.apis import set_random_seed
 from mmseg import __version__ as mmseg_version
 
 from mmcv.utils import TORCH_VERSION, digit_version
-sys.path.append('.')
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train a detector')
@@ -104,6 +106,8 @@ def main():
     args = parse_args()
 
     cfg = Config.fromfile(args.config)
+    cfg['data']['samples_per_gpu']=2
+    cfg['data']['workers_per_gpu']=0
     if args.cfg_options is not None:
         cfg.merge_from_dict(args.cfg_options)
     # import modules from string list.

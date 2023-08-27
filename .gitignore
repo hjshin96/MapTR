@@ -38,6 +38,8 @@ var/
 wheels/
 pip-wheel-metadata/
 share/python-wheels/
+wandb/
+
 *.egg-info/
 .installed.cfg
 *.egg
