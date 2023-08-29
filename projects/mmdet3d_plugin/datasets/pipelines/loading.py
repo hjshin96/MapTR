@@ -387,9 +387,7 @@ class CustomImageDepth:
         depth_map = torch.zeros((height, width), dtype=torch.float32)
         depth = points_img[:, 2]
         coor = torch.round(points_img[:, :2])
-        kept1 = (coor[:, 0] >= 0) & (coor[:, 0] < width) & (
-            coor[:, 1] >= 0) & (coor[:, 1] < height) & (depth < self.grid_config['depth'][1]) & (
-                    depth >= self.grid_config['depth'][0])
+        kept1 = (coor[:, 0] >= 0) & (coor[:, 0] < width) & (coor[:, 1] >= 0) & (coor[:, 1] < height) & (depth < self.grid_config['depth'][1]) & (depth >= self.grid_config['depth'][0])
         coor, depth = coor[kept1], depth[kept1]
         ranks = coor[:, 0] + coor[:, 1] * width                     #  
         sort = (ranks + depth / 100.).argsort()                     #

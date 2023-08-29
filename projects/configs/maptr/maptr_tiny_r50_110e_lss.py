@@ -11,8 +11,11 @@ plugin_dir = 'projects/mmdet3d_plugin/'
 # point_cloud_range = [-51.2, -51.2, -5.0, 51.2, 51.2, 3.0]
 point_cloud_range = [-15.0, -30.0, -2.0, 15.0, 30.0, 2.0]
 voxel_size = [0.15, 0.15, 4]
-
-
+# chgd
+grid_config = {
+    # start, dim, delta
+    'depth': [1.0, 60.0, 1.0],
+}
 
 
 img_norm_cfg = dict(
@@ -33,7 +36,7 @@ eval_use_same_gt_sample_num_flag=True
 num_map_classes = len(map_classes)
 
 input_modality = dict(
-    use_lidar=False,
+    use_lidar=True,
     use_camera=True,
     use_radar=False,
     use_map=False,
@@ -50,7 +53,7 @@ bev_w_ = 100
 queue_length = 1 # each sequence contains `queue_length` frames.
 
 model = dict(
-    type='MapTR',
+    type='MapTRDepth',
     use_grid_mask=True,
     video_test_mode=False,
     pretrained=dict(img='ckpts/resnet50-19c8e357.pth'),
@@ -71,6 +74,17 @@ model = dict(
         add_extra_convs='on_output',
         num_outs=_num_levels_,
         relu_before_extra_convs=True),
+    # chgd
+    depth_net=dict(
+        type='BEVDepthNet',
+        in_channels=_dim_,
+        mid_channels=512,
+        #chgd
+        context_channels=196,
+        downsample=32,
+        loss_depth_weight=3.0,
+        grid_cfg=grid_config
+    ),
     pts_bbox_head=dict(
         type='MapTRHead',
         bev_h=bev_h_,
@@ -194,18 +208,30 @@ dataset_type = 'CustomNuScenesLocalMapDataset'
 data_root = 'data/nuscenes/'
 file_client_args = dict(backend='disk')
 
+# chgd
+reduce_beams=32
+load_dim=5
+use_dim=5
 
 train_pipeline = [
     dict(type='LoadMultiViewImageFromFiles', to_float32=True),
+    # chgd
+    dict(type='CustomLoadPointsFromFile', coord_type='LIDAR', load_dim=load_dim, use_dim=use_dim, reduce_beams=reduce_beams),
+    dict(type='CustomLoadPointsFromMultiSweeps', sweeps_num=9, load_dim=load_dim, use_dim=use_dim, reduce_beams=reduce_beams, pad_empty_sweeps=True, remove_close=True),
+    # dict(type='CustomImageDepth', grid_config=grid_config),
+    
     dict(type='PhotoMetricDistortionMultiViewImage'),
     dict(type='LoadAnnotations3D', with_bbox_3d=True, with_label_3d=True, with_attr_label=False),
     dict(type='ObjectRangeFilter', point_cloud_range=point_cloud_range),
     dict(type='ObjectNameFilter', classes=class_names),
     dict(type='NormalizeMultiviewImage', **img_norm_cfg),
     dict(type='RandomScaleImageMultiViewImage', scales=[0.5]),
+    dict(type='CustomImageDepth', grid_config=grid_config),
     dict(type='PadMultiViewImage', size_divisor=32),
+    dict(type='PadDepthMap', size_divisor=32),
     dict(type='DefaultFormatBundle3D', class_names=class_names),
-    dict(type='CustomCollect3D', keys=['gt_bboxes_3d', 'gt_labels_3d', 'img'])
+    # chgd
+    dict(type='CustomCollect3D', keys=['gt_bboxes_3d', 'gt_labels_3d', 'img', 'points', 'gt_depth', 'lidar2img'])
 ]
 
 test_pipeline = [
@@ -253,7 +279,7 @@ data = dict(
     val=dict(type=dataset_type,
              data_root=data_root,
              ann_file=data_root + 'nuscenes_infos_temporal_train_100.pkl',
-             map_ann_file=data_root + 'nuscenes_map_anns_val.json',
+             map_ann_file=data_root + 'nuscenes_map_anns_train.json',
              pipeline=test_pipeline,  bev_size=(bev_h_, bev_w_),
              pc_range=point_cloud_range,
              fixed_ptsnum_per_line=fixed_ptsnum_per_gt_line,
@@ -264,7 +290,7 @@ data = dict(
     test=dict(type=dataset_type,
               data_root=data_root,
               ann_file=data_root + 'nuscenes_infos_temporal_train_100.pkl',
-              map_ann_file=data_root + 'nuscenes_map_anns_val.json',
+              map_ann_file=data_root + 'nuscenes_map_anns_train.json',
               pipeline=test_pipeline, bev_size=(bev_h_, bev_w_),
               pc_range=point_cloud_range,
               fixed_ptsnum_per_line=fixed_ptsnum_per_gt_line,
@@ -278,7 +304,7 @@ data = dict(
 
 optimizer = dict(
     type='AdamW',
-    # chgd 6e-4
+    # chgd
     lr=1e-3,
     paramwise_cfg=dict(
         custom_keys={
@@ -294,10 +320,9 @@ lr_config = dict(
     warmup_iters=500,
     warmup_ratio=1.0 / 3,
     min_lr_ratio=1e-3)
-total_epochs = 110
+total_epochs = 150
 # total_epochs = 50
 # evaluation = dict(interval=1, pipeline=test_pipeline)
-# chgd interval 2
 evaluation = dict(interval=10, pipeline=test_pipeline, metric='chamfer')
 
 runner = dict(type='EpochBasedRunner', max_epochs=total_epochs)
@@ -306,8 +331,9 @@ log_config = dict(
     interval=50,
     hooks=[
         dict(type='TextLoggerHook'),
-        dict(type='TensorboardLoggerHook')
+        dict(type='TensorboardLoggerHook'),
+        dict(type='WandbLoggerHook')
     ])
 fp16 = dict(loss_scale=512.)
-# chgd interval 5
+# chgd
 checkpoint_config = dict(interval=10)

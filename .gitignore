@@ -39,7 +39,7 @@ wheels/
 pip-wheel-metadata/
 share/python-wheels/
 wandb/
-
+.vscode/
 *.egg-info/
 .installed.cfg
 *.egg

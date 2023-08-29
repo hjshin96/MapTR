@@ -240,6 +240,7 @@ class MapTRDepth(MVXTwoStageDetector):
         img_depth=None,
         img_mask=None,
         gt_depth=None,
+        lidar2img=None
     ):
         """Forward training function.
         Args:
@@ -292,7 +293,7 @@ class MapTRDepth(MVXTwoStageDetector):
         #     img_feats, lidar_feat, gt_bboxes_3d, gt_labels_3d, img_metas, gt_bboxes_ignore, prev_bev
         # )
         losses_pts = self.forward_pts_train(
-            img_feats, lidar_feat, gt_bboxes_3d, gt_labels_3d, img_metas, gt_bboxes_ignore, prev_bev
+            [torch.cat([img_feats[0], depth_feats], dim=2)], lidar_feat, gt_bboxes_3d, gt_labels_3d, img_metas, gt_bboxes_ignore, prev_bev
         )
 
         losses.update(losses_pts)

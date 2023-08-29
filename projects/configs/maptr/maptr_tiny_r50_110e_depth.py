@@ -80,10 +80,11 @@ model = dict(
     depth_net=dict(
         type='BEVDepthNet',
         in_channels=_dim_,
-        mid_channels=256,
-        context_channels=256,
+        mid_channels=512,
+        #chgd
+        context_channels=196,
         downsample=32,
-        loss_depth_weight=1.0,
+        loss_depth_weight=3.0,
         grid_cfg=grid_config
     ),
     pts_bbox_head=dict(
@@ -232,7 +233,7 @@ train_pipeline = [
     dict(type='PadDepthMap', size_divisor=32),
     dict(type='DefaultFormatBundle3D', class_names=class_names),
     # chgd
-    dict(type='CustomCollect3D', keys=['gt_bboxes_3d', 'gt_labels_3d', 'img', 'points', 'gt_depth'])
+    dict(type='CustomCollect3D', keys=['gt_bboxes_3d', 'gt_labels_3d', 'img', 'points', 'gt_depth', 'lidar2img'])
 ]
 
 test_pipeline = [
@@ -261,7 +262,7 @@ data = dict(
     train=dict(
         type=dataset_type,
         data_root=data_root,
-        ann_file=data_root + 'nuscenes_infos_temporal_train_100.pkl',
+        ann_file=data_root + 'nuscenes_infos_temporal_train.pkl',
         pipeline=train_pipeline,
         classes=class_names,
         modality=input_modality,
@@ -279,7 +280,7 @@ data = dict(
         box_type_3d='LiDAR'),
     val=dict(type=dataset_type,
              data_root=data_root,
-             ann_file=data_root + 'nuscenes_infos_temporal_train_100.pkl',
+             ann_file=data_root + 'nuscenes_infos_temporal_val.pkl',
              map_ann_file=data_root + 'nuscenes_map_anns_train.json',
              pipeline=test_pipeline,  bev_size=(bev_h_, bev_w_),
              pc_range=point_cloud_range,
@@ -290,8 +291,8 @@ data = dict(
              classes=class_names, modality=input_modality, samples_per_gpu=1),
     test=dict(type=dataset_type,
               data_root=data_root,
-              ann_file=data_root + 'nuscenes_infos_temporal_train_100.pkl',
-              map_ann_file=data_root + 'nuscenes_map_anns_train.json',
+              ann_file=data_root + 'nuscenes_infos_temporal_val.pkl',
+              map_ann_file=data_root + 'nuscenes_map_anns_val.json',
               pipeline=test_pipeline, bev_size=(bev_h_, bev_w_),
               pc_range=point_cloud_range,
               fixed_ptsnum_per_line=fixed_ptsnum_per_gt_line,
@@ -305,7 +306,8 @@ data = dict(
 
 optimizer = dict(
     type='AdamW',
-    lr=1e-3,
+    # chgd
+    lr=6e-4,
     paramwise_cfg=dict(
         custom_keys={
             'img_backbone': dict(lr_mult=0.1),
@@ -320,10 +322,10 @@ lr_config = dict(
     warmup_iters=500,
     warmup_ratio=1.0 / 3,
     min_lr_ratio=1e-3)
-total_epochs = 50
+total_epochs = 10
 # total_epochs = 50
 # evaluation = dict(interval=1, pipeline=test_pipeline)
-evaluation = dict(interval=10, pipeline=test_pipeline, metric='chamfer')
+evaluation = dict(interval=1, pipeline=test_pipeline, metric='chamfer')
 
 runner = dict(type='EpochBasedRunner', max_epochs=total_epochs)
 
@@ -335,4 +337,5 @@ log_config = dict(
         dict(type='WandbLoggerHook')
     ])
 fp16 = dict(loss_scale=512.)
-checkpoint_config = dict(interval=5)
+# chgd
+checkpoint_config = dict(interval=1)
