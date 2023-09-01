@@ -262,7 +262,8 @@ data = dict(
     train=dict(
         type=dataset_type,
         data_root=data_root,
-        ann_file=data_root + 'nuscenes_infos_temporal_train.pkl',
+        # ann_file=data_root + 'nuscenes_infos_temporal_train.pkl',
+        ann_file=data_root + 'nuscenes_infos_temporal_train_100.pkl',
         pipeline=train_pipeline,
         classes=class_names,
         modality=input_modality,
@@ -280,26 +281,30 @@ data = dict(
         box_type_3d='LiDAR'),
     val=dict(type=dataset_type,
              data_root=data_root,
-             ann_file=data_root + 'nuscenes_infos_temporal_val.pkl',
-             map_ann_file=data_root + 'nuscenes_map_anns_val.json',
-             pipeline=test_pipeline,  bev_size=(bev_h_, bev_w_),
-             pc_range=point_cloud_range,
-             fixed_ptsnum_per_line=fixed_ptsnum_per_gt_line,
-             eval_use_same_gt_sample_num_flag=eval_use_same_gt_sample_num_flag,
-             padding_value=-10000,
-             map_classes=map_classes,
-             classes=class_names, modality=input_modality, samples_per_gpu=1),
+            #  ann_file=data_root + 'nuscenes_infos_temporal_val.pkl',
+            ann_file=data_root + 'nuscenes_infos_temporal_train_100.pkl',
+            #  map_ann_file=data_root + 'nuscenes_map_anns_val.json',
+            map_ann_file=data_root + 'nuscenes_map_anns_train.json',
+            pipeline=test_pipeline,  bev_size=(bev_h_, bev_w_),
+            pc_range=point_cloud_range,
+            fixed_ptsnum_per_line=fixed_ptsnum_per_gt_line,
+            eval_use_same_gt_sample_num_flag=eval_use_same_gt_sample_num_flag,
+            padding_value=-10000,
+            map_classes=map_classes,
+            classes=class_names, modality=input_modality, samples_per_gpu=1),
     test=dict(type=dataset_type,
-              data_root=data_root,
-              ann_file=data_root + 'nuscenes_infos_temporal_val.pkl',
-              map_ann_file=data_root + 'nuscenes_map_anns_val.json',
-              pipeline=test_pipeline, bev_size=(bev_h_, bev_w_),
-              pc_range=point_cloud_range,
-              fixed_ptsnum_per_line=fixed_ptsnum_per_gt_line,
-              eval_use_same_gt_sample_num_flag=eval_use_same_gt_sample_num_flag,
-              padding_value=-10000,
-              map_classes=map_classes,
-              classes=class_names, modality=input_modality),
+            data_root=data_root,
+            #   ann_file=data_root + 'nuscenes_infos_temporal_val.pkl',
+            ann_file=data_root + 'nuscenes_infos_temporal_train_100.pkl',
+            # map_ann_file=data_root + 'nuscenes_map_anns_val.json',
+            map_ann_file=data_root + 'nuscenes_map_anns_train.json',
+            pipeline=test_pipeline, bev_size=(bev_h_, bev_w_),
+            pc_range=point_cloud_range,
+            fixed_ptsnum_per_line=fixed_ptsnum_per_gt_line,
+            eval_use_same_gt_sample_num_flag=eval_use_same_gt_sample_num_flag,
+            padding_value=-10000,
+            map_classes=map_classes,
+            classes=class_names, modality=input_modality),
     shuffler_sampler=dict(type='DistributedGroupSampler'),
     nonshuffler_sampler=dict(type='DistributedSampler')
 )
@@ -319,18 +324,18 @@ optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 lr_config = dict(
     policy='CosineAnnealing',
     warmup='linear',
-    warmup_iters=500,
+    warmup_iters=100,
     warmup_ratio=1.0 / 3,
     min_lr_ratio=1e-3)
-total_epochs = 24
+total_epochs = 300
 # total_epochs = 50
 # evaluation = dict(interval=1, pipeline=test_pipeline)
-evaluation = dict(interval=1, pipeline=test_pipeline, metric='chamfer')
+evaluation = dict(interval=50, pipeline=test_pipeline, metric='chamfer')
 
 runner = dict(type='EpochBasedRunner', max_epochs=total_epochs)
 
 log_config = dict(
-    interval=50,
+    interval=100,
     hooks=[
         dict(type='TextLoggerHook'),
         dict(type='TensorboardLoggerHook'),
@@ -338,4 +343,4 @@ log_config = dict(
     ])
 fp16 = dict(loss_scale=512.)
 # chgd
-checkpoint_config = dict(interval=1)
+checkpoint_config = dict(interval=50)
