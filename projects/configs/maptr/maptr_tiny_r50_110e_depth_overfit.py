@@ -335,7 +335,7 @@ evaluation = dict(interval=50, pipeline=test_pipeline, metric='chamfer')
 runner = dict(type='EpochBasedRunner', max_epochs=total_epochs)
 
 log_config = dict(
-    interval=100,
+    interval=10,
     hooks=[
         dict(type='TextLoggerHook'),
         dict(type='TensorboardLoggerHook'),
