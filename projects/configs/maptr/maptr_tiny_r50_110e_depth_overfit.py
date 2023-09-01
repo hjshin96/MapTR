@@ -84,7 +84,7 @@ model = dict(
         #chgd
         context_channels=196,
         downsample=32,
-        loss_depth_weight=3.0,
+        loss_depth_weight=3.0,          # TODO: loss_cls/4
         grid_cfg=grid_config
     ),
     pts_bbox_head=dict(
