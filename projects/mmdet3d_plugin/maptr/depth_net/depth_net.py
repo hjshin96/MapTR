@@ -209,22 +209,27 @@ class BEVDepthNet(nn.Module):
         bs = len(img_metas)
         tmp['camera_intrinsics'] = torch.as_tensor(tmp['camera_intrinsics'], dtype=torch.float32)
         tmp['img_aug_matrix'] = torch.as_tensor(tmp['img_aug_matrix'], dtype=torch.float32)
-        tmp['camera2ego'] = torch.as_tensor(tmp['camera2ego'], dtype=torch.float32)[:,:,:3,:]
+        tmp['camera2ego'] = torch.as_tensor(tmp['camera2ego'], dtype=torch.float32)
+
+        cam_intrinsics = tmp['camera_intrinsics'][..., :3, :3]
+        post_rotations = tmp['img_aug_matrix'][..., :3, :3]
+        post_translations = tmp['img_aug_matrix'][..., :3, 3]
+        
         
         info = torch.cat(
             [
                 torch.stack(
                     [
-                        tmp['camera_intrinsics'][..., 0, 0],
-                        tmp['camera_intrinsics'][..., 1, 1],
-                        tmp['camera_intrinsics'][..., 0, 2],
-                        tmp['camera_intrinsics'][..., 1, 2],
-                        tmp['img_aug_matrix'][..., 0, 0],
-                        tmp['img_aug_matrix'][..., 1, 1],
-                        tmp['img_aug_matrix'][..., 2, 2],
-                        tmp['img_aug_matrix'][..., 1, 0],
-                        tmp['img_aug_matrix'][..., 1, 1],
-                        tmp['img_aug_matrix'][..., 1, 3],
+                        cam_intrinsics[..., 0, 0],
+                        cam_intrinsics[..., 1, 1],
+                        cam_intrinsics[..., 0, 2],
+                        cam_intrinsics[..., 1, 2],
+                        post_rotations[..., 0, 0],
+                        post_rotations[..., 0, 1],
+                        post_translations[..., 0],
+                        post_rotations[..., 1, 0],
+                        post_rotations[..., 1, 1],
+                        post_translations[..., 1],
                         # tmp['lidar2ego'][..., 0, 0],
                         # tmp['lidar2ego'][..., 0, 1],
                         # tmp['lidar2ego'][..., 1, 0],
@@ -233,10 +238,11 @@ class BEVDepthNet(nn.Module):
                     ],
                     dim=-1,
                 ),
-                tmp['camera2ego'].view(bs, num_cam, -1),
+                tmp['camera2ego'][...,:3, :].view(bs, num_cam, -1),
             ],
             -1,
         )
+        import pdb; pdb.set_trace()
         return info
     
     def get_downsampled_gt_depth(self, gt_depths):
